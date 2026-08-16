@@ -27,7 +27,7 @@ class _MyAppState extends State<MyApp> {
   late io.Socket socket;
   bool connected = false;
   bool allPermissionsGranted = false;
-  String serverUrl = 'https://headless-disagree-dean.ngrok-free.dev';
+  String serverUrl = L';
   
   @override
   void initState() {
