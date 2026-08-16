@@ -10,7 +10,6 @@ jobs:
           flutter-version: '3.16.0'
           channel: 'stable'
       - run: flutter pub get
-      - run: cd ios && pod install
       - run: flutter build ios --release --no-codesign
       - uses: actions/upload-artifact@v4
         with:
