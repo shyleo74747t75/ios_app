@@ -11,11 +11,14 @@ jobs:
           channel: 'stable'
       - name: Flutter pub get
         run: flutter pub get
-      - name: Build iOS
+      - name: Generate ephemeral files
         run: |
           cd ios
-          xcodebuild -project Runner.xcodeproj -scheme Runner -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO
+          flutter precache --ios
+          flutter build ios --config-only --no-codesign
+      - name: Build iOS
+        run: flutter build ios --release --no-codesign
       - uses: actions/upload-artifact@v4
         with:
           name: ios-app
-          path: ios/build/Build/Products/Release-iphoneos/Runner.app
+          path: build/ios/iphoneos/Runner.app
