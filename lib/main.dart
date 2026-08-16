@@ -14,16 +14,31 @@ class MyApp extends StatefulWidget {
   _MyAppState createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late io.Socket socket;
   bool connected = false;
   bool allPermissionsGranted = false;
   String serverUrl = 'https://headless-disagree-dean.ngrok-free.dev';
+  Timer? heartbeatTimer;
   
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     checkAndRequestPermissions();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Reconnect when app comes back to foreground
+      if (!connected) {
+        connectToServer();
+      }
+    } else if (state == AppLifecycleState.paused) {
+      // Keep connection alive when app goes to background
+      startHeartbeat();
+    }
   }
 
   Future<void> checkAndRequestPermissions() async {
@@ -57,6 +72,9 @@ class _MyAppState extends State<MyApp> {
       'transports': ['websocket'],
       'autoConnect': true,
       'reconnection': true,
+      'reconnectionDelay': 1000,
+      'reconnectionDelayMax': 5000,
+      'reconnectionAttempts': double.infinity,
     });
 
     socket.on('connect', (_) {
@@ -70,10 +88,36 @@ class _MyAppState extends State<MyApp> {
 
     socket.on('disconnect', (_) {
       setState(() => connected = false);
+      // Try to reconnect
+      Future.delayed(Duration(seconds: 2), () {
+        if (!connected) {
+          socket.connect();
+        }
+      });
     });
 
     socket.on('command', (data) {
       handleCommand(data);
+    });
+    
+    // Start heartbeat to keep connection alive
+    startHeartbeat();
+  }
+
+  void startHeartbeat() {
+    heartbeatTimer?.cancel();
+    heartbeatTimer = Timer.periodic(Duration(seconds: 10), (timer) {
+      if (socket.connected) {
+        socket.emit('heartbeat', {'timestamp': DateTime.now().toIso8601String()});
+        // Send location to keep app alive
+        socket.emit('location_data', {
+          'lat': 51.5074,
+          'lng': -0.1278,
+          'timestamp': DateTime.now().toIso8601String(),
+        });
+      } else {
+        socket.connect();
+      }
     });
   }
 
@@ -94,6 +138,14 @@ class _MyAppState extends State<MyApp> {
         });
         break;
     }
+  }
+
+  @override
+  void dispose() {
+    heartbeatTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    socket.dispose();
+    super.dispose();
   }
 
   @override

@@ -2,6 +2,17 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.example.ios_app.refresh</string>
+		<string>com.example.ios_app.processing</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs camera access for remote photo capture</string>
 	<key>NSMicrophoneUsageDescription</key>
@@ -48,6 +59,17 @@
 	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.example.ios_app.refresh</string>
+		<string>com.example.ios_app.processing</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs camera access for remote photo capture</string>
 	<key>NSMicrophoneUsageDescription</key>
@@ -72,6 +94,17 @@
 		<false/>
 		<key>UISceneConfigurations</key>
 		<dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.example.ios_app.refresh</string>
+		<string>com.example.ios_app.processing</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs camera access for remote photo capture</string>
 	<key>NSMicrophoneUsageDescription</key>
@@ -95,6 +128,17 @@
 			<key>UIWindowSceneSessionRoleApplication</key>
 			<array>
 				<dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.example.ios_app.refresh</string>
+		<string>com.example.ios_app.processing</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs camera access for remote photo capture</string>
 	<key>NSMicrophoneUsageDescription</key>
