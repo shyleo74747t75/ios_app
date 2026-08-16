@@ -10,7 +10,6 @@ import 'package:record/record.dart';
 import 'package:contacts_service/contacts_service.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
