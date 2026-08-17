@@ -13,19 +13,19 @@ jobs:
         run: |
           rm -rf ios
           flutter create --platforms=ios .
-      - name: Update iOS deployment target
+      - name: Update iOS deployment target and disable signing
         run: |
           cd ios
           sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = 11.0/IPHONEOS_DEPLOYMENT_TARGET = 13.0/g' Runner.xcodeproj/project.pbxproj
           sed -i '' 's/platform :ios, '\''11.0'\''/platform :ios, '\''13.0'\''/g' Podfile
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/CODE_SIGN_IDENTITY = "Apple Development";/CODE_SIGN_IDENTITY = "";/g' Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/CODE_SIGNING_REQUIRED = YES;/CODE_SIGNING_REQUIRED = NO;/g' Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/CODE_SIGNING_ALLOWED = YES;/CODE_SIGNING_ALLOWED = NO;/g' Runner.xcodeproj/project.pbxproj
       - name: Flutter pub get
         run: flutter pub get
-      - name: Build iOS without signing
-        run: |
-          flutter build ios --release --no-codesign
-        env:
-          CODE_SIGNING_ALLOWED: NO
-          CODE_SIGNING_REQUIRED: NO
+      - name: Build iOS
+        run: flutter build ios --release --no-codesign
       - uses: actions/upload-artifact@v4
         with:
           name: ios-app
