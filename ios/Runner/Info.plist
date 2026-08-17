@@ -5,6 +5,13 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
+		<string>fetch</string>
+		<string>processing</string>
+		<string>remote-notification</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
 		<string>audio</string>
 		<string>fetch</string>
 		<string>processing</string>
@@ -70,6 +77,13 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
+		<string>fetch</string>
+		<string>processing</string>
+		<string>remote-notification</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
 		<string>audio</string>
 		<string>fetch</string>
 		<string>processing</string>
@@ -113,6 +127,13 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
+		<string>fetch</string>
+		<string>processing</string>
+		<string>remote-notification</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
 		<string>audio</string>
 		<string>fetch</string>
 		<string>processing</string>
@@ -152,6 +173,13 @@
 			<key>UIWindowSceneSessionRoleApplication</key>
 			<array>
 				<dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+		<string>processing</string>
+		<string>remote-notification</string>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
