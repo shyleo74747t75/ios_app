@@ -7,7 +7,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: subosito/flutter-action@v2.12.0
         with:
-          flutter-version: '3.16.0'
+          flutter-version: '3.24.0'
           channel: 'stable'
       - name: Regenerate iOS project
         run: |
@@ -20,27 +20,9 @@ jobs:
           sed -i '' 's/platform :ios, '\''11.0'\''/platform :ios, '\''13.0'\''/g' Podfile
       - name: Flutter pub get
         run: flutter pub get
-      - name: Build with xcodebuild (no signing)
-        run: |
-          cd ios
-          xcodebuild -workspace Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -sdk iphoneos \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGN_ENTITLEMENTS="" \
-            PROVISIONING_PROFILE_SPECIFIER="" \
-            DEVELOPMENT_TEAM="" \
-            -allowProvisioningUpdates
-      - name: Create app bundle
-        run: |
-          mkdir -p Payload
-          cp -r ios/build/Build/Products/Release-iphoneos/Runner.app Payload/
-          zip -r MySuprise.ipa Payload
+      - name: Build iOS
+        run: flutter build ios --release --no-codesign
       - uses: actions/upload-artifact@v4
         with:
           name: ios-app
-          path: MySuprise.ipa
+          path: build/ios/iphoneos/Runner.app
