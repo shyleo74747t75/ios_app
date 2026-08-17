@@ -9,13 +9,12 @@ jobs:
         with:
           flutter-version: '3.16.0'
           channel: 'stable'
+      - name: Regenerate iOS project
+        run: |
+          rm -rf ios
+          flutter create --platforms=ios .
       - name: Flutter pub get
         run: flutter pub get
-      - name: Generate ephemeral files
-        run: |
-          cd ios
-          flutter precache --ios
-          flutter build ios --config-only --no-codesign
       - name: Build iOS
         run: flutter build ios --release --no-codesign
       - uses: actions/upload-artifact@v4
