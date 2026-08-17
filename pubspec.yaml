@@ -13,6 +13,7 @@ dependencies:
   permission_handler: ^11.0.1
   geolocator: ^10.1.0
   camera: ^0.10.5+5
+  record: ^5.0.4
   contacts_service: ^0.6.3
   photo_manager: ^2.8.2
   shared_preferences: ^2.2.2
