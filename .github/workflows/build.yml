@@ -20,6 +20,10 @@ jobs:
           sed -i '' 's/platform :ios, '\''11.0'\''/platform :ios, '\''13.0'\''/g' Podfile
       - name: Flutter pub get
         run: flutter pub get
+      - name: Pod install
+        run: |
+          cd ios
+          pod install
       - name: Build with xcodebuild
         run: |
           cd ios
